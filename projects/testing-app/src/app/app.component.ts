@@ -4,6 +4,7 @@ import {
   DragNDropDirective,
   DropListDirective,
   LibDragDrop,
+  removeNestedItem,
 } from 'drag-n-drop';
 
 @Component({
@@ -65,7 +66,8 @@ export class AppComponent {
   }
 
   dropped(event: LibDragDrop<{ id: number }>, items: unknown[]) {
-    this.removeNestedItem(this.items(), event.container.data);
-    items.splice(0, 0, event.container.data);
+    removeNestedItem(this.items(), event.container.data);
+    items.splice(event.container.index, 0, event.container.data);
+    this.items.update((prev) => [...prev]);
   }
 }
