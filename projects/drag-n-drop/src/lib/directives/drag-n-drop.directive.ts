@@ -1,11 +1,11 @@
 import {
-  ChangeDetectorRef,
   DestroyRef,
   Directive,
   ElementRef,
   OnInit,
   Renderer2,
   booleanAttribute,
+  contentChild,
   inject,
   input,
   signal,
@@ -13,7 +13,8 @@ import {
 import { delay, filter, fromEvent, map, switchMap, takeUntil, tap } from 'rxjs';
 import { DropListDirective } from './drop-list.directive';
 import { DragNDropService } from '../drag-n-drop.service';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DragHandleDirective } from './drag-handle.directive';
 
 @Directive({
   selector: '[libDragNDrop]',
@@ -23,24 +24,27 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
     class: 'lib-drag',
     '[class.lib-drag-disabled]': 'disabled()',
     '[class.lib-drag-dragging]': 'isDragging()',
-    '[class.lib-drag-placeholder]': 'showPlaceholder',
+    '[class.lib-drag-placeholder]': 'showingPlaceholder()',
   },
 })
-export class DragNDropDirective<T = unknown> implements OnInit {
+export class DragNDropDirective implements OnInit {
   #dragNDropService = inject(DragNDropService);
-  #elRef = inject(ElementRef);
+  #elRef = inject<ElementRef<HTMLElement>>(ElementRef);
   #renderer = inject(Renderer2);
-  #dropList = inject(DropListDirective, { optional: true });
-  #cdr = inject(ChangeDetectorRef);
   #destroyRef = inject(DestroyRef);
 
-  data = input<T | null>(null, { alias: 'libDragData' });
+  dragHandle = contentChild(DragHandleDirective);
+  dropList = inject(DropListDirective, { optional: true });
   disabled = input(false, {
     alias: 'libDragDisabled',
     transform: booleanAttribute,
   });
   isDragging = signal(false);
-  showPlaceholder?: boolean;
+  showingPlaceholder = signal(false);
+
+  get elHandle() {
+    return this.dragHandle()?.elRef.nativeElement ?? this.#elRef.nativeElement;
+  }
 
   private setStyles(
     el: unknown,
@@ -76,16 +80,14 @@ export class DragNDropDirective<T = unknown> implements OnInit {
   }
 
   private dragWithDropList(event: MouseEvent) {
+    this.showingPlaceholder.set(true);
     this.#dragNDropService.setActiveItem({
-      data: this.data(),
-      el: this.#elRef.nativeElement,
-      dropEl: this.#dropList?.elRef.nativeElement,
-      index: Array.from(this.#elRef.nativeElement.parentNode.children).indexOf(
+      dragNDropDirective: this,
+      index: Array.from(this.#elRef.nativeElement.parentNode!.children).indexOf(
         this.#elRef.nativeElement
       ),
     });
 
-    this.showPlaceholder = true;
     const rect = (
       this.#elRef.nativeElement as HTMLElement
     ).getBoundingClientRect();
@@ -103,23 +105,27 @@ export class DragNDropDirective<T = unknown> implements OnInit {
           )}px, ${Math.round(top + mouseMove.clientY - event.clientY)}px, 0px)`,
         });
       }),
-      takeUntil(
-        fromEvent<MouseEvent>(window, 'mouseup').pipe(
-          tap(() => {
-            this.isDragging.set(false);
-            this.#renderer.setStyle(clone, 'transition', 'transform 0.2s');
-            this.setStyles(clone, {
-              transform: `translate3d(${left}px, ${top}px, 0px)`,
-            });
-          }),
-          delay(210),
-          tap(() => {
-            this.showPlaceholder = false;
-            this.#renderer.removeChild(document.body, backdrop);
-            this.#cdr.markForCheck();
-          })
-        )
-      )
+      takeUntil(this.mouseUp(clone, backdrop))
+    );
+  }
+
+  private mouseUp(clone: HTMLElement, backdrop: HTMLElement) {
+    return fromEvent<MouseEvent>(window, 'mouseup').pipe(
+      tap(() => {
+        const { left, top } = this.#elRef.nativeElement.getBoundingClientRect();
+        this.isDragging.set(false);
+
+        this.#renderer.setStyle(clone, 'transition', 'transform 0.2s');
+        this.setStyles(clone, {
+          transform: `translate3d(${left}px, ${top}px, 0px)`,
+        });
+      }),
+      delay(210),
+      tap(() => {
+        this.showingPlaceholder.set(false);
+        this.#dragNDropService.reset();
+        this.#renderer.removeChild(document.body, backdrop);
+      })
     );
   }
 
@@ -133,7 +139,9 @@ export class DragNDropDirective<T = unknown> implements OnInit {
       height: '100%',
       pointerEvents: 'none',
     });
-    const clone = (this.#elRef.nativeElement as HTMLElement).cloneNode(true);
+    const clone = (this.#elRef.nativeElement as HTMLElement).cloneNode(
+      true
+    ) as HTMLElement;
 
     this.#renderer.addClass(clone, 'lib-drag-preview');
 
@@ -155,18 +163,19 @@ export class DragNDropDirective<T = unknown> implements OnInit {
   }
 
   private onMouseMove(event: MouseEvent) {
-    if (!this.#dropList) return this.freeDrag(event);
+    if (!this.dropList) return this.freeDrag(event);
     return this.dragWithDropList(event);
   }
 
   ngOnInit() {
-    fromEvent<MouseEvent>(this.#elRef.nativeElement, 'mousedown')
+    fromEvent<MouseEvent>(this.elHandle, 'mousedown')
       .pipe(
         filter((event) => event.button === 0),
         tap((event) => {
           event.preventDefault();
           event.stopPropagation();
 
+          this.#dragNDropService.setHoveredDropList(this.dropList);
           this.isDragging.set(true);
         }),
         switchMap((event) => this.onMouseMove(event)),

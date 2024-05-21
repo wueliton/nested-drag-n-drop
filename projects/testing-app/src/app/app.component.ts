@@ -1,16 +1,23 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import {
+  DragHandleDirective,
   DragNDropDirective,
   DropListDirective,
   LibDragDrop,
-  removeNestedItem,
+  moveItemInArray,
+  transferArrayItem,
 } from 'drag-n-drop';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [DragNDropDirective, DropListDirective, NgTemplateOutlet],
+  imports: [
+    DragNDropDirective,
+    DropListDirective,
+    DragHandleDirective,
+    NgTemplateOutlet,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
@@ -48,6 +55,26 @@ export class AppComponent {
     },
   ]);
 
+  todoItems = signal([
+    {
+      id: 2,
+    },
+    {
+      id: 3,
+    },
+  ]);
+
+  devItems = signal([
+    {
+      id: 4,
+    },
+    {
+      id: 5,
+    },
+  ]);
+
+  doneItems = signal<{ id: number }[]>([]);
+
   private removeNestedItem<T extends Array<any> | Object>(
     array: Array<T>,
     item: T
@@ -65,9 +92,37 @@ export class AppComponent {
     });
   }
 
-  dropped(event: LibDragDrop<{ id: number }>, items: unknown[]) {
-    removeNestedItem(this.items(), event.container.data);
-    items.splice(event.container.index, 0, event.container.data);
-    this.items.update((prev) => [...prev]);
+  dropped(event: LibDragDrop<{ id: number }>) {
+    if (event.previousContainer !== event.container) {
+      transferArrayItem(
+        event.previousContainer.data!,
+        event.container.data!,
+        event.previousIndex,
+        event.currentIndex
+      );
+    } else {
+      moveItemInArray(
+        event.container.data!,
+        event.previousIndex,
+        event.currentIndex
+      );
+    }
+  }
+
+  droppedConnected(event: LibDragDrop) {
+    if (event.previousContainer !== event.container) {
+      transferArrayItem(
+        event.previousContainer.data!,
+        event.container.data!,
+        event.previousIndex,
+        event.currentIndex
+      );
+    } else {
+      moveItemInArray(
+        event.container.data!,
+        event.previousIndex,
+        event.currentIndex
+      );
+    }
   }
 }
