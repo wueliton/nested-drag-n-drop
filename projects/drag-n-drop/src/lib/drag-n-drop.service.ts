@@ -20,15 +20,17 @@ export type DragItem<T = any> = {
 export class DragNDropService {
   #activeItem = signal<DragItem | null>(null);
   #hoveredDropList = signal<DropListDirective | null>(null);
-  #clonedItem = signal<Node | HTMLElement | null>(null);
-  #animatedItems = signal<HTMLElement[]>([]);
+  #clonedItem = signal<HTMLElement | null>(null);
   #dropItemIndex = signal<number | null>(null);
+  #dropItemPosition = signal<DOMRect | null>(null);
+  #placeholderInitialIndex = signal<number | null>(null);
 
   activeItem = this.#activeItem.asReadonly();
   hoveredDropList = this.#hoveredDropList.asReadonly();
   clonedItem = this.#clonedItem.asReadonly();
-  animatedItems = this.#animatedItems.asReadonly();
   dropItemIndex = this.#dropItemIndex.asReadonly();
+  dropItemPosition = this.#dropItemPosition.asReadonly();
+  placeholderInitialIndex = this.#placeholderInitialIndex.asReadonly();
 
   setActiveItem(item: DragItem | null) {
     this.#activeItem.set(item);
@@ -38,31 +40,28 @@ export class DragNDropService {
     this.#hoveredDropList.set(item);
   }
 
-  setClonedItem(item: Node | HTMLElement | null) {
+  setClonedItem(item: HTMLElement | null) {
     this.#clonedItem.set(item);
-  }
-
-  addAnimatedItem(item: HTMLElement) {
-    this.#animatedItems.update((prev) => [...prev, item]);
-  }
-
-  removeAnimatedItem(item: HTMLElement) {
-    this.#animatedItems.update((prev) => prev.filter((el) => el !== item));
-  }
-
-  cleanAnimatedItems() {
-    this.#animatedItems.set([]);
   }
 
   setDropItemIndex(index: number | null) {
     this.#dropItemIndex.set(index);
   }
 
+  setDropItemPosition(rect: DOMRect) {
+    this.#dropItemPosition.set(rect);
+  }
+
+  setPlaceholderInitialIndex(index: number) {
+    this.#placeholderInitialIndex.set(index);
+  }
+
   reset() {
     this.#activeItem.set(null);
     this.#hoveredDropList.set(null);
     this.#clonedItem.set(null);
-    this.#animatedItems.set([]);
+    this.#dropItemPosition.set(null);
     this.#dropItemIndex.set(null);
+    this.#placeholderInitialIndex.set(null);
   }
 }

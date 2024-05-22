@@ -15,6 +15,7 @@ import { DropListDirective } from './drop-list.directive';
 import { DragNDropService } from '../drag-n-drop.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DragHandleDirective } from './drag-handle.directive';
+import { getChildNodeIndex } from '../utils';
 
 @Directive({
   selector: '[libDragNDrop]',
@@ -175,8 +176,17 @@ export class DragNDropDirective implements OnInit {
           event.preventDefault();
           event.stopPropagation();
 
-          this.#dragNDropService.setHoveredDropList(this.dropList);
           this.isDragging.set(true);
+
+          if (!this.dropList) return;
+
+          this.#dragNDropService.setHoveredDropList(this.dropList);
+          const elIndex = getChildNodeIndex(
+            this.dropList?.elRef.nativeElement.children!,
+            this.#elRef.nativeElement
+          );
+          this.#dragNDropService.setDropItemIndex(elIndex);
+          this.#dragNDropService.setPlaceholderInitialIndex(elIndex);
         }),
         switchMap((event) => this.onMouseMove(event)),
         takeUntilDestroyed(this.#destroyRef)

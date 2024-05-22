@@ -14,9 +14,13 @@
   opacity: 0;
   cursor: grabbing;
 
-  * {
+  .lib-drop-list {
     pointer-events: none;
   }
+}
+
+.lib-drag-dragging-list .lib-drag > *:not(.lib-drop-list) {
+  pointer-events: none;
 }
 
 .lib-drag-preview {
