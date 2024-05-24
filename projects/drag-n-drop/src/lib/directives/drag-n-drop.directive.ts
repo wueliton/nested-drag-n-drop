@@ -2,6 +2,8 @@ import {
   DestroyRef,
   Directive,
   ElementRef,
+  EmbeddedViewRef,
+  InjectionToken,
   OnInit,
   Renderer2,
   booleanAttribute,
@@ -15,7 +17,12 @@ import { DropListDirective } from './drop-list.directive';
 import { DragNDropService } from '../drag-n-drop.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DragHandleDirective } from './drag-handle.directive';
-import { getChildNodeIndex } from '../utils';
+import { getChildNodeIndex, getRootNode } from '../utils';
+import { DragPreviewDirective } from './drag-preview.directive';
+
+export const CDK_DRAG_PARENT = new InjectionToken<DragNDropDirective>(
+  'CDK_DRAG_PARENT'
+);
 
 @Directive({
   selector: '[libDragNDrop]',
@@ -27,12 +34,15 @@ import { getChildNodeIndex } from '../utils';
     '[class.lib-drag-dragging]': 'isDragging()',
     '[class.lib-drag-placeholder]': 'showingPlaceholder()',
   },
+  providers: [{ provide: CDK_DRAG_PARENT, useExisting: DragNDropDirective }],
 })
 export class DragNDropDirective implements OnInit {
   #dragNDropService = inject(DragNDropService);
   #elRef = inject<ElementRef<HTMLElement>>(ElementRef);
   #renderer = inject(Renderer2);
   #destroyRef = inject(DestroyRef);
+  #previewTemplate?: DragPreviewDirective | null;
+  #previewRef?: EmbeddedViewRef<any> | null;
 
   dragHandle = contentChild(DragHandleDirective);
   dropList = inject(DropListDirective, { optional: true });
@@ -121,10 +131,12 @@ export class DragNDropDirective implements OnInit {
           transform: `translate3d(${left}px, ${top}px, 0px)`,
         });
       }),
-      delay(210),
+      delay(200),
       tap(() => {
         this.showingPlaceholder.set(false);
         this.#dragNDropService.reset();
+        this.#previewRef?.destroy();
+        this.#previewRef = null;
         this.#renderer.removeChild(document.body, backdrop);
       })
     );
@@ -140,9 +152,19 @@ export class DragNDropDirective implements OnInit {
       height: '100%',
       pointerEvents: 'none',
     });
-    const clone = (this.#elRef.nativeElement as HTMLElement).cloneNode(
-      true
-    ) as HTMLElement;
+
+    let clonedElement = this.#elRef.nativeElement as HTMLElement;
+
+    if (this.#previewTemplate) {
+      const template = this.#previewTemplate.templateRef.createEmbeddedView(
+        this.#previewTemplate.templateRef
+      );
+      clonedElement = getRootNode(template, document);
+    }
+
+    const matchSize = this.#previewTemplate?.matchSize() ?? true;
+
+    const clone = clonedElement.cloneNode(true) as HTMLElement;
 
     this.#renderer.addClass(clone, 'lib-drag-preview');
 
@@ -152,9 +174,8 @@ export class DragNDropDirective implements OnInit {
       margin: '0',
       left: '0',
       top: '0',
-      height: `${height}px`,
-      width: `${width}px`,
       transform: `translate3d(${left}px, ${top}px, 0px)`,
+      ...(matchSize ? { height: `${height}px`, width: `${width}px` } : {}),
     });
 
     this.#renderer.appendChild(backdrop, clone);
@@ -192,5 +213,13 @@ export class DragNDropDirective implements OnInit {
         takeUntilDestroyed(this.#destroyRef)
       )
       .subscribe();
+  }
+
+  setPreviewTemplate(preview: DragPreviewDirective) {
+    this.#previewTemplate = preview;
+  }
+
+  resetPreviewTemplate(preview: DragPreviewDirective) {
+    if (preview === this.#previewTemplate) this.#previewTemplate = null;
   }
 }

@@ -6,7 +6,8 @@
     "paths": {
       "drag-n-drop": [
         "./dist/drag-n-drop"
-      ]
+      ],
+      "drag-n-drop/styles": ["./dist/drag-n-drop/_index.scss"]
     },
     "strict": true,
     "noImplicitOverride": true,

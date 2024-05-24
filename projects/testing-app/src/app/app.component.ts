@@ -3,10 +3,12 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import {
   DragHandleDirective,
   DragNDropDirective,
+  DropGroupDirective,
   DropListDirective,
   LibDragDrop,
   moveItemInArray,
   transferArrayItem,
+  DragPreviewDirective,
 } from 'drag-n-drop';
 
 @Component({
@@ -17,6 +19,8 @@ import {
     DropListDirective,
     DragHandleDirective,
     NgTemplateOutlet,
+    DropGroupDirective,
+    DragPreviewDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.component.html',

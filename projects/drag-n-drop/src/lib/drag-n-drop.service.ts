@@ -24,6 +24,7 @@ export class DragNDropService {
   #dropItemIndex = signal<number | null>(null);
   #dropItemPosition = signal<DOMRect | null>(null);
   #placeholderInitialIndex = signal<number | null>(null);
+  #isDraggingToUp = signal(false);
 
   activeItem = this.#activeItem.asReadonly();
   hoveredDropList = this.#hoveredDropList.asReadonly();
@@ -31,6 +32,7 @@ export class DragNDropService {
   dropItemIndex = this.#dropItemIndex.asReadonly();
   dropItemPosition = this.#dropItemPosition.asReadonly();
   placeholderInitialIndex = this.#placeholderInitialIndex.asReadonly();
+  isDraggingToUp = this.#isDraggingToUp.asReadonly();
 
   setActiveItem(item: DragItem | null) {
     this.#activeItem.set(item);
@@ -54,6 +56,10 @@ export class DragNDropService {
 
   setPlaceholderInitialIndex(index: number) {
     this.#placeholderInitialIndex.set(index);
+  }
+
+  setIsDraggingToUp(isUpPosition: boolean) {
+    this.#isDraggingToUp.set(isUpPosition);
   }
 
   reset() {

@@ -2,24 +2,30 @@
 <div class="free" libDragNDrop>Teste</div>
 <h2>Drag-n-drop aninhado</h2>
 
-<ng-template #listLoop let-items>
-  <div
-    class="list"
-    [libDropListData]="items"
-    (libDropListDropped)="dropped($event)"
-    libDropList
-  >
-    @for(item of items; track item.id) {
-    <div class="item" libDragNDrop>
-      @if(item.items) {
-      <ng-container
-        *ngTemplateOutlet="listLoop; context: { $implicit: item.items }"
-      ></ng-container>
-      } @else { Item {{ item.id }} }
+<div libDropGroup>
+  <ng-template #listLoop let-items>
+    <div
+      class="list"
+      [libDropListData]="items"
+      (libDropListDropped)="dropped($event)"
+      libDropList
+    >
+      @for(item of items; track item.id) {
+      <div class="item" libDragNDrop>
+        <ng-template libDragPreview matchSize
+          ><div class="preview">Preview Elemento</div></ng-template
+        >
+        @if(item.items) {
+        <ng-container
+          *ngTemplateOutlet="listLoop; context: { $implicit: item.items }"
+        ></ng-container>
+        } @else { Item {{ item.id }}
+        }
+      </div>
+      }
     </div>
-    }
-  </div>
-</ng-template>
+  </ng-template>
+</div>
 
 <ng-container
   *ngTemplateOutlet="listLoop; context: { $implicit: items() }"

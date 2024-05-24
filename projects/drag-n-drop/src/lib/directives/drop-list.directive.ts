@@ -1,6 +1,7 @@
 import {
   Directive,
   ElementRef,
+  InjectionToken,
   Renderer2,
   computed,
   inject,
@@ -9,8 +10,13 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { DragNDropService, LibDragDrop } from '../drag-n-drop.service';
-import { filter, fromEvent, switchMap, takeUntil, tap } from 'rxjs';
+import { delay, filter, fromEvent, map, switchMap, takeUntil, tap } from 'rxjs';
 import { getChildNodeIndex } from '../utils';
+import { DropGroupDirective } from './drop-group.directive';
+
+export const LIB_DROP_LIST = new InjectionToken<DropListDirective>(
+  'LIB_DROP_LIST'
+);
 
 @Directive({
   selector: '[libDropList]',
@@ -20,13 +26,20 @@ import { getChildNodeIndex } from '../utils';
     class: 'lib-drop-list',
     '[class.lib-drag-dragging-list]': 'isDragging()',
   },
+  providers: [
+    {
+      provide: LIB_DROP_LIST,
+      useExisting: DropListDirective,
+    },
+  ],
 })
 export class DropListDirective<T = any> {
   #dragNDropService = inject(DragNDropService);
   #renderer = inject(Renderer2);
+  dropGroup = inject(DropGroupDirective, { optional: true });
   elRef = inject<ElementRef<HTMLElement>>(ElementRef);
-  dropped = output<LibDragDrop>({ alias: 'libDropListDropped' });
-  connectedTo = input<DropListDirective[] | null>(null, {
+  dropped = output<LibDragDrop<T>>({ alias: 'libDropListDropped' });
+  connectedTo = input<DropListDirective<any>[] | null>(null, {
     alias: 'libDropListConnectedTo',
   });
   dropData = input<Array<T> | null>(null, { alias: 'libDropListData' });
@@ -38,28 +51,30 @@ export class DropListDirective<T = any> {
 
   private onDropItem() {
     return fromEvent(window, 'mouseup').pipe(
-      filter(() => !!this.#dragNDropService.activeItem()),
-      tap(() => {
+      filter(
+        () =>
+          !!this.#dragNDropService.activeItem() &&
+          this.#dragNDropService.hoveredDropList() === this
+      ),
+      map(() => {
         const item = this.#dragNDropService.activeItem();
         const index = this.#dragNDropService.dropItemIndex()!;
-        const hoveredDropList = this.#dragNDropService.hoveredDropList();
 
-        if (!hoveredDropList || hoveredDropList !== this) return;
-
-        //Need to wait item animation moving to list to emit dropped item
-        setTimeout(() => {
-          this.dropped.emit({
-            previousIndex: item?.index!,
-            previousContainer: item?.dragNDropDirective.dropList!,
-            container: this,
-            currentIndex: index,
-            item: item?.dragNDropDirective!,
-          });
-          this.removeAnimation(
-            Array.from(this.elRef.nativeElement.children),
-            true
-          );
-        }, 230);
+        return { item, index };
+      }),
+      delay(230),
+      tap(({ item, index }) => {
+        this.dropped.emit({
+          previousIndex: item?.index!,
+          previousContainer: item?.dragNDropDirective.dropList!,
+          container: this,
+          currentIndex: index,
+          item: item?.dragNDropDirective!,
+        });
+        this.removeAnimation(
+          Array.from(this.elRef.nativeElement.children),
+          true
+        );
       })
     );
   }
@@ -68,16 +83,8 @@ export class DropListDirective<T = any> {
     return fromEvent<MouseEvent>(this.elRef.nativeElement, 'mouseover').pipe(
       tap((event) => {
         event!.stopPropagation();
-        const dropList =
-          this.#dragNDropService.activeItem()?.dragNDropDirective.dropList;
 
-        if (
-          dropList != this &&
-          ((!!dropList?.connectedTo()?.length &&
-            !dropList.connectedTo()?.includes(this)) ||
-            (!!this.connectedTo()?.length && !dropList?.connectedTo()?.length))
-        )
-          return;
+        if (!this.#dragNDropService.activeItem()) return;
 
         const target = (event!.target as HTMLElement).closest('.lib-drag');
         const childIndex = getChildNodeIndex(
@@ -117,8 +124,10 @@ export class DropListDirective<T = any> {
   }
 
   private animateItens(childIndex: number) {
+    let isUpPosition = this.#dragNDropService.isDraggingToUp();
+
     if (childIndex === this.#dragNDropService.dropItemIndex()) {
-      childIndex++;
+      childIndex = isUpPosition ? childIndex + 1 : childIndex - 1;
     }
 
     this.#dragNDropService.setDropItemIndex(childIndex);
@@ -126,11 +135,16 @@ export class DropListDirective<T = any> {
     const placeholderInitialIndex =
       this.#dragNDropService.placeholderInitialIndex()!;
 
-    const isUpPosition = placeholderInitialIndex > childIndex;
+    isUpPosition = placeholderInitialIndex > childIndex;
+    this.#dragNDropService.setIsDraggingToUp(isUpPosition);
     const elementChilds = Array.from(this.elRef.nativeElement.children);
     const firstItem = Math.min(childIndex, placeholderInitialIndex);
     const lastItem = Math.max(childIndex, placeholderInitialIndex);
-    const animatedItens = elementChilds.splice(firstItem, lastItem - firstItem);
+
+    const animatedItens = elementChilds.splice(
+      isUpPosition ? firstItem : firstItem + 1,
+      lastItem - firstItem
+    );
     const { height } = (
       this.#dragNDropService.clonedItem() as HTMLElement
     ).getBoundingClientRect();
@@ -167,7 +181,18 @@ export class DropListDirective<T = any> {
   constructor() {
     toObservable(this.#dragNDropService.activeItem)
       .pipe(
-        filter((item) => !!item),
+        filter((item) => {
+          const dropList = item?.dragNDropDirective.dropList;
+          const dropDirectives =
+            item?.dragNDropDirective.dropList?.dropGroup?.dropDirectives() ??
+            item?.dragNDropDirective.dropList?.connectedTo();
+
+          return (
+            !!item &&
+            ((!!dropDirectives && dropDirectives.includes(this)) ||
+              dropList === this)
+          );
+        }),
         switchMap(() => this.onMouseMove().pipe(takeUntil(this.onDropItem()))),
         takeUntilDestroyed()
       )

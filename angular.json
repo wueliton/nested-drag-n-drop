@@ -57,10 +57,7 @@
               "projects/testing-app/src/favicon.ico",
               "projects/testing-app/src/assets"
             ],
-            "styles": [
-              "projects/testing-app/src/styles.scss",
-              "projects/drag-n-drop/_index.scss"
-            ],
+            "styles": ["projects/testing-app/src/styles.scss"],
             "scripts": []
           },
           "configurations": {

@@ -1,3 +1,5 @@
+@import 'drag-n-drop/styles';
+
 * {
   box-sizing: border-box;
 }
@@ -56,4 +58,13 @@ div.item {
   > * {
     flex: 0 0 300px;
   }
+}
+
+.preview {
+  height: 300px;
+  width: 240px;
+  background: gray;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
