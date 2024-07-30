@@ -7,7 +7,12 @@
       "drag-n-drop": [
         "./dist/drag-n-drop"
       ],
-      "drag-n-drop/styles": ["./dist/drag-n-drop/_index.scss"]
+      "drag-n-drop/styles": [
+        "./dist/drag-n-drop/_index.scss"
+      ],
+      "grid-swapy": [
+        "./dist/grid-swapy"
+      ]
     },
     "strict": true,
     "noImplicitOverride": true,
