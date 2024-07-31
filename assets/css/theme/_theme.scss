@@ -1,0 +1,24 @@
+:root {
+  --color-bg: #F2F2F2;
+  --color-bg-2: #AAA;
+  --color-bg-3: #888;
+  --color-fg-medium: #475569;
+  --color-accent: #38bdf8;
+  --color-secondary: #f472b6;
+}
+
+@media(prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0c1220;
+    --color-bg-2: #1b2337;
+    --color-bg-3: #333a4d;
+    --color-fg-medium: #94a3b8;
+  }
+}
+
+$color-bg: var(--color-bg);
+$color-bg-2: var(--color-bg-2);
+$color-bg-3: var(--color-bg-3);
+$color-fg-medium: var(--color-fg-medium);
+$color-accent: var(--color-accent);
+$color-secondary: var(--color-secondary);
